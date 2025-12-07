@@ -1,0 +1,200 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
+from bs4 import BeautifulSoup
+import pandas as pd
+import pyautogui
+import logging
+import time
+import datetime as datetime
+import tkinter as tk
+import re
+import os
+from helpers import *
+# 76561199124145415
+
+# Configuração do logging
+logging.basicConfig(level=logging.INFO)
+
+
+def instalar_extensao(driver, wait):
+
+    time.sleep(2)
+
+    botao = wait.until(EC.element_to_be_clickable((By.XPATH, f'/html/body/div/div/div/div/div[2]/section/div/header/div[4]/div/div/a')))
+    botao.click()
+
+    time.sleep(2)
+    pyautogui.click(x=1840, y=403)
+    time.sleep(2)
+
+
+def extrair_inventario_steam(driver, wait):
+    """Extrai o inventário do Steam e retorna um DataFrame com os dados."""
+    try:
+        time.sleep(2)
+        driver.refresh()
+        time.sleep(4)
+        rolar_para_baixo(driver, 3, 100)
+        time.sleep(2)
+        paginas = obter_total_paginas(driver, wait)
+        all_df = []
+
+        for pagina in range(1, paginas + 1):
+            logging.info(f"Extraindo dados da página {pagina} de {paginas}...")
+
+            page_source = driver.execute_script('return document.body.innerHTML')
+            site = BeautifulSoup(page_source, 'html.parser')
+            boxes = site.find_all('div', attrs={'class': 'itemHolder'})
+
+            try:
+                first_box = wait.until(EC.presence_of_element_located(
+                    (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[1]/div/a')
+                ))
+                time.sleep(1)
+                first_box.click()
+            except:
+                pass
+
+            for index, box in enumerate(boxes, start=1):
+
+                column_df = {
+                    'nome_skin': [],
+                    'categoria_skin': [],
+                    'exterior': [],
+                    'float': [],
+                    'pattern': [],
+                    'run_game_link': []
+                }
+
+                page_source = driver.execute_script('return document.body.innerHTML')
+                site = BeautifulSoup(page_source, 'html.parser')
+
+                nome_skin = site.find('h1', attrs={'class': 'R1W-zMFN4WGw9JK48Yqez _12ldq1_X5RuLWAAs_ODwt7'}).text.strip()
+                column_df['nome_skin'] = nome_skin
+
+                categoria_text = site.find('span', attrs={'class': '_1maNP9UvDekHzld1kwwQnw f6hU22EA7Z8peFWZVBJU'}).text.strip()
+
+                if any(item in categoria_text for item in ITENS_PARA_IGNORAR):
+                    logging.info('Medalha ou ítem não precificável')
+                    try:
+                        pyautogui.moveRel(1, 0)
+                        pyautogui.moveRel(-1, 0)
+                        time.sleep(5)
+                        next_box = wait.until(EC.presence_of_element_located(
+                            (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[{index + 1}]/div/a')
+                        ))
+                        ActionChains(driver).double_click(next_box).perform()
+                    except:
+                        print(f"Não há mais boxes para clicar. Parando na posição {index}")
+                        break
+                    continue
+                elif not categoria_text:
+                    logging.error('Item não tem categoria')
+                    raise KeyError('Item não tem categoria')
+                elif any(item in categoria_text for item in ITENS_DIFERENTES):
+                    column_df['categoria_skin'] = categoria_text
+                    column_df['exterior'] = ''
+                    column_df['float'] = ''
+                    column_df['pattern'] = ''
+                else:
+                    column_df['categoria_skin'] = categoria_text
+
+                    lista_att = site.find_all('div', attrs={'class': 'FYJ4NYxpWeIha0N1-jUcm _1maNP9UvDekHzld1kwwQnw f6hU22EA7Z8peFWZVBJU'})
+                    
+                    exterior = lista_att[0].text.replace('Exterior: ', '')
+                    column_df['exterior'] = exterior
+
+                    div = site.find('div', attrs={'class': 'Cgo8G5L7D0oP0OHVGcq_D _3JCkAyd9cnB90tRcDLPp4W _38cfDT7owcq-7PHlx-Bx2j _3nHL7awgK1Qei1XivGvHMK'})
+                    lista_info = div.find_all('div', attrs={'class': 'f6hU22EA7Z8peFWZVBJU'})
+
+                    pattern = lista_info[-2].text.replace('Pattern Template: ', '')
+                    column_df['pattern'] = pattern
+
+                    float_str = lista_info[-1].text.replace('Wear Rating: ', '')
+                    column_df['float'] = float_str
+
+                run_game_link = site.find('a', attrs={'class': '_1QAy1Cc-ZLMZh5eTmrOl56 _3tzhYVET7ZK7wJDcq-fTqL _1Lj8DZ5OwROQBTPVOJcAY _3A_c3YHYd4YIjA8Y-olnPl'})
+                href_run_game_link = run_game_link['href'] if run_game_link else None
+                column_df['run_game_link'] = href_run_game_link
+
+
+                all_df.append(column_df)
+
+                # Clica no próximo box
+                try:
+                    pyautogui.moveRel(1, 0)
+                    pyautogui.moveRel(-1, 0)
+                    time.sleep(3)
+                    next_box = wait.until(EC.presence_of_element_located(
+                        (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[{index + 1}]/div/a')
+                    ))
+                    ActionChains(driver).double_click(next_box).perform()
+                except:
+                    print(f"Não há mais boxes para clicar. Parando na posição {index}")
+                    break
+
+
+            # Se houver mais páginas, clica na próxima
+            if pagina < paginas:
+                try:
+                    logging.info(f"Clicando na página {pagina + 1}...")
+                    proxima_pagina = wait.until(EC.presence_of_element_located((By.XPATH, f'//*[@id="pagebtn_next"]')))
+                    proxima_pagina = wait.until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="pagebtn_next"]')))
+                    proxima_pagina.click()
+                    time.sleep(3)
+                except Exception as e:
+                    logging.info(f"Erro ao clicar na próxima página: {e}")
+                    break
+
+        df = pd.DataFrame(all_df)
+        return df
+
+    except Exception as e:
+        logging.error(f"Erro ao extrair dados: {e}")
+        raise e
+
+
+# ------------------------ Main ------------------------
+
+def main(link_inv):
+
+    driver_path = os.path.abspath("geckodriver")
+
+    logging.info('Iniciando service')
+    firefox_service = Service(executable_path=driver_path)
+    options = Options()
+    # options.add_argument('--headless')
+
+    driver = webdriver.Firefox(service=firefox_service, options=options)
+    wait = WebDriverWait(driver, 10)
+    logging.info('Driver setado')
+
+    driver.maximize_window()
+    driver.get(link_inv)
+    aba_steam = driver.current_window_handle
+
+    driver.switch_to.new_window('tab')
+    driver.get('https://addons.mozilla.org/pt-BR/firefox/addon/csgo-trader-steam-trading/?utm_source=addons.mozilla.org&utm_medium=referral&utm_content=search')
+
+    instalar_extensao(driver, wait)
+    driver.switch_to.window(aba_steam)
+
+    df = extrair_inventario_steam(driver, wait)
+
+    # df = cria_coluna_arma(df)
+
+    # logging.info(df)
+
+
+    # driver.quit()
+
+
+if __name__ == '__main__':
+    link_inv = 'https://steamcommunity.com/profiles/76561198869542875/inventory/#730'
+
+    main(link_inv)
