@@ -24,8 +24,10 @@ logging.basicConfig(level=logging.INFO)
 def extrair_inventario_steam(driver, wait):
     """Extrai o inventário do Steam e retorna um DataFrame com os dados."""
     try:
+        time.sleep(3)
+        driver.refresh()
+        time.sleep(3)
         rolar_para_baixo(driver, 3, 100)
-        time.sleep(2)
         paginas = obter_total_paginas(driver, wait)
         all_df = []
 
@@ -201,6 +203,6 @@ def main(link_inv):
 
 
 if __name__ == '__main__':
-    link_inv = 'https://steamcommunity.com/profiles/76561198799627985/inventory/#730'
+    link_inv = 'https://steamcommunity.com/id/RDMSKINS/inventory/#730'
 
     main(link_inv)

@@ -111,7 +111,8 @@ def cria_coluna_arma(df):
     df_filtered = df[
         df['float'].notna() &
         (df['float'].astype(str).str.strip() != "") &
-        (~mask_container)  # evita sobrescrever CAIXA
+        (~mask_container) &   # evita sobrescrever caixa
+        (~mask_sem_pintura)   # evita sobrescrever facas Not Painted
     ].copy()
 
     def extrair_arma(skin):
