@@ -100,6 +100,18 @@ def cria_coluna_arma(df):
     df.loc[mask_luva, 'Arma'] = "FAIXAS"
 
     # -----------------------------
+    # 6. REGRAS PARA "STICKER" (Sticker)
+    # -----------------------------
+    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    df.loc[mask_sticker, 'Arma'] = "STICKER"
+
+    # -----------------------------
+    # 6. REGRAS PARA "CHAVEIRO" (Charm)
+    # -----------------------------
+    mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
+    df.loc[mask_chaveiro, 'Arma'] = "CHAVEIRO"
+
+    # -----------------------------
     # 6. REGRAS PARA Facas sem pintura (Not Painted)
     # -----------------------------
     mask_sem_pintura = df['exterior'].astype(str).str.contains("Not Painted", case=False, na=False)
@@ -111,7 +123,8 @@ def cria_coluna_arma(df):
     df_filtered = df[
         df['float'].notna() &
         (df['float'].astype(str).str.strip() != "") &
-        (~mask_container)  # evita sobrescrever CAIXA
+        (~mask_container) &   # evita sobrescrever caixa
+        (~mask_sem_pintura)   # evita sobrescrever facas Not Painted
     ].copy()
 
     def extrair_arma(skin):
@@ -271,16 +284,38 @@ def criar_coluna_tipo(df):
     mask_luva = df['categoria_skin'].astype(str).str.contains("Knife", case=False, na=False)
     df.loc[mask_luva, 'Tipo'] = "FACA"
 
+    # -----------------------------
+    # 12. REGRAS PARA STICKERS (Sticker)
+    # -----------------------------
+    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    df.loc[mask_sticker, 'Tipo'] = "STICKER"
+
+    # -----------------------------
+    # 13. REGRAS PARA CHAVEIRO (Charm)
+    # -----------------------------
+    mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
+    df.loc[mask_chaveiro, 'Tipo'] = "CHAVEIRO"
+
     return df
-    
 
 
-### DUVIDAS
-### O que acontece com os stickers/graffiti?
-###
-###
-###
-###
-###
-###
-###
+def agrupar_itens_espec(df):
+    tipos_especiais = ["STICKER", "CAIXA", "CHAVEIRO"]
+
+    df_espec = df[df['Tipo'].isin(tipos_especiais)].copy()
+    df_restante = df[~df['Tipo'].isin(tipos_especiais)].copy()
+
+    # Adiciona a quantidade em cada linha
+    df_espec['Quantidade'] = df_espec.groupby(['nome_skin', 'Tipo'])['nome_skin'].transform('count')
+
+    # Agora remove linhas duplicadas mantendo só uma
+    df_group = df_espec.drop_duplicates(subset=['nome_skin', 'Tipo'])
+
+    # Criar Arma como “20x CAIXA”
+    df_group['Arma'] = df_group['Quantidade'].astype(str) + "x " + df_group['Tipo']
+
+    # Junta tudo
+    df_final = pd.concat([df_restante, df_group], ignore_index=True)
+
+    return df_final
+
