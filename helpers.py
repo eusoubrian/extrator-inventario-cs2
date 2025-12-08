@@ -300,24 +300,21 @@ def criar_coluna_tipo(df):
 
 
 def agrupar_itens_espec(df):
-    # Tipos que devem ser agrupados
     tipos_especiais = ["STICKER", "CAIXA", "CHAVEIRO"]
 
-    # Separar df em: especiais e não-especiais
     df_espec = df[df['Tipo'].isin(tipos_especiais)].copy()
     df_restante = df[~df['Tipo'].isin(tipos_especiais)].copy()
 
-    # Agrupar especiais
-    df_group = (
-        df_espec.groupby(['Skin', 'Tipo'])
-        .size()
-        .reset_index(name='Quantidade')
-    )
+    # Adiciona a quantidade em cada linha
+    df_espec['Quantidade'] = df_espec.groupby(['nome_skin', 'Tipo'])['nome_skin'].transform('count')
+
+    # Agora remove linhas duplicadas mantendo só uma
+    df_group = df_espec.drop_duplicates(subset=['nome_skin', 'Tipo'])
 
     # Criar Arma como “20x CAIXA”
     df_group['Arma'] = df_group['Quantidade'].astype(str) + "x " + df_group['Tipo']
 
-    # Agora concatena o agrupado + os outros itens
+    # Junta tudo
     df_final = pd.concat([df_restante, df_group], ignore_index=True)
 
     return df_final

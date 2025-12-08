@@ -206,6 +206,6 @@ def main(link_inv):
 
 
 if __name__ == '__main__':
-    link_inv = 'https://steamcommunity.com/id/RDMSKINS/inventory/#730'
+    link_inv = 'https://steamcommunity.com/profiles/76561198148313096/inventory/#730'
 
     main(link_inv)
