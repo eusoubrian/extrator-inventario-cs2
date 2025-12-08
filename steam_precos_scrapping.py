@@ -187,6 +187,8 @@ def main(link_inv):
 
     df_steam = extrair_inventario_steam(driver, wait)
 
+    driver.quit()
+
     df_coluna_arma = cria_coluna_arma(df_steam)
 
     df_exterior = depara_exterior(df_coluna_arma)
@@ -195,11 +197,12 @@ def main(link_inv):
 
     df_coluna_tipo = criar_coluna_tipo(df_coluna_skin)
 
-    logging.info(df_coluna_tipo)
+    df_agrupado = agrupar_itens_espec(df_coluna_tipo)
 
-    df_coluna_skin.to_excel('relatorio.xlsx')
+    logging.info(df_agrupado)
 
-    driver.quit()
+    df_agrupado.to_excel('relatorio.xlsx')
+
 
 
 if __name__ == '__main__':

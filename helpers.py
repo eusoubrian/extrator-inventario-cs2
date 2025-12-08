@@ -100,6 +100,18 @@ def cria_coluna_arma(df):
     df.loc[mask_luva, 'Arma'] = "FAIXAS"
 
     # -----------------------------
+    # 6. REGRAS PARA "STICKER" (Sticker)
+    # -----------------------------
+    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    df.loc[mask_sticker, 'Arma'] = "STICKER"
+
+    # -----------------------------
+    # 6. REGRAS PARA "CHAVEIRO" (Charm)
+    # -----------------------------
+    mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
+    df.loc[mask_chaveiro, 'Arma'] = "CHAVEIRO"
+
+    # -----------------------------
     # 6. REGRAS PARA Facas sem pintura (Not Painted)
     # -----------------------------
     mask_sem_pintura = df['exterior'].astype(str).str.contains("Not Painted", case=False, na=False)
@@ -272,16 +284,41 @@ def criar_coluna_tipo(df):
     mask_luva = df['categoria_skin'].astype(str).str.contains("Knife", case=False, na=False)
     df.loc[mask_luva, 'Tipo'] = "FACA"
 
+    # -----------------------------
+    # 12. REGRAS PARA STICKERS (Sticker)
+    # -----------------------------
+    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    df.loc[mask_sticker, 'Tipo'] = "STICKER"
+
+    # -----------------------------
+    # 13. REGRAS PARA CHAVEIRO (Charm)
+    # -----------------------------
+    mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
+    df.loc[mask_chaveiro, 'Tipo'] = "CHAVEIRO"
+
     return df
-    
 
 
-### DUVIDAS
-### O que acontece com os stickers/graffiti?
-###
-###
-###
-###
-###
-###
-###
+def agrupar_itens_espec(df):
+    # Tipos que devem ser agrupados
+    tipos_especiais = ["STICKER", "CAIXA", "CHAVEIRO"]
+
+    # Separar df em: especiais e não-especiais
+    df_espec = df[df['Tipo'].isin(tipos_especiais)].copy()
+    df_restante = df[~df['Tipo'].isin(tipos_especiais)].copy()
+
+    # Agrupar especiais
+    df_group = (
+        df_espec.groupby(['Skin', 'Tipo'])
+        .size()
+        .reset_index(name='Quantidade')
+    )
+
+    # Criar Arma como “20x CAIXA”
+    df_group['Arma'] = df_group['Quantidade'].astype(str) + "x " + df_group['Tipo']
+
+    # Agora concatena o agrupado + os outros itens
+    df_final = pd.concat([df_restante, df_group], ignore_index=True)
+
+    return df_final
+
