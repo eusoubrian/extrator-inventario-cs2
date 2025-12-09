@@ -11,12 +11,21 @@ import pyautogui
 import logging
 import time
 import datetime as datetime
-import tkinter as tk
+from dotenv import load_dotenv
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 import re
 import os
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO)
+
+load_dotenv()
+
+APP_PASSWORD = os.getenv("APP_PASSWORD")
+EMAIL = os.getenv("EMAIL")
 
 
 ITENS_DIFERENTES = [
@@ -61,7 +70,7 @@ def obter_total_paginas(driver, wait):
         total_paginas = int(paginacao.split('of')[-1].strip()) if paginacao else 1
         return total_paginas
     except Exception as e:
-        print(f"Erro ao obter a paginação: {e}")
+        logging.error(f"Erro ao obter a paginação: {e}")
         return 1
     
 
@@ -102,7 +111,7 @@ def cria_coluna_arma(df):
     # -----------------------------
     # 6. REGRAS PARA "STICKER" (Sticker)
     # -----------------------------
-    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    mask_sticker = df['categoria_skin'].astype(str).str.contains("Sticker", case=False, na=False)
     df.loc[mask_sticker, 'Arma'] = "STICKER"
 
     # -----------------------------
@@ -110,6 +119,12 @@ def cria_coluna_arma(df):
     # -----------------------------
     mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
     df.loc[mask_chaveiro, 'Arma'] = "CHAVEIRO"
+
+    # -----------------------------
+    # 6. REGRAS PARA "GRAFFITI" (Graffiti)
+    # -----------------------------
+    mask_graffiti = df['categoria_skin'].astype(str).str.contains("Graffiti", case=False, na=False)
+    df.loc[mask_graffiti, 'Arma'] = "GRAFFITI"
 
     # -----------------------------
     # 6. REGRAS PARA Facas sem pintura (Not Painted)
@@ -287,7 +302,7 @@ def criar_coluna_tipo(df):
     # -----------------------------
     # 12. REGRAS PARA STICKERS (Sticker)
     # -----------------------------
-    mask_sticker = df['nome_skin'].astype(str).str.contains("Sticker", case=False, na=False)
+    mask_sticker = df['categoria_skin'].astype(str).str.contains("Sticker", case=False, na=False)
     df.loc[mask_sticker, 'Tipo'] = "STICKER"
 
     # -----------------------------
@@ -296,11 +311,17 @@ def criar_coluna_tipo(df):
     mask_chaveiro = df['nome_skin'].astype(str).str.contains("Charm", case=False, na=False)
     df.loc[mask_chaveiro, 'Tipo'] = "CHAVEIRO"
 
+    # -----------------------------
+    # 13. REGRAS PARA GRAFFITI (Charm)
+    # -----------------------------
+    mask_graffiti = df['categoria_skin'].astype(str).str.contains("Graffiti", case=False, na=False)
+    df.loc[mask_graffiti, 'Tipo'] = "GRAFFITI"
+
     return df
 
 
 def agrupar_itens_espec(df):
-    tipos_especiais = ["STICKER", "CAIXA", "CHAVEIRO"]
+    tipos_especiais = ["STICKER", "CAIXA", "CHAVEIRO", "GRAFFITI"]
 
     df_espec = df[df['Tipo'].isin(tipos_especiais)].copy()
     df_restante = df[~df['Tipo'].isin(tipos_especiais)].copy()
@@ -319,3 +340,81 @@ def agrupar_itens_espec(df):
 
     return df_final
 
+
+
+def enviar_email_com_excel(
+    destinatario,
+    assunto,
+    corpo,
+    caminho_excel
+):
+    """
+    Envia um email com um arquivo .xlsx anexado.
+    """
+
+    # Cria estrutura do email
+    msg = MIMEMultipart()
+    msg["From"] = EMAIL
+    msg["To"] = destinatario
+    msg["Subject"] = assunto
+
+    # Corpo do email
+    msg.attach(MIMEText(corpo, "plain"))
+
+    # Lê o arquivo Excel
+    with open(caminho_excel, "rb") as f:
+        excel_part = MIMEApplication(f.read(), _subtype="xlsx")
+
+    # Nome do arquivo no anexo
+    excel_part.add_header(
+        "Content-Disposition",
+        "attachment",
+        filename=caminho_excel.split("/")[-1]
+    )
+
+    msg.attach(excel_part)
+
+    # Envia usando SMTP do Gmail
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL, APP_PASSWORD)
+        smtp.send_message(msg)
+
+    logging.info("Email enviado com sucesso!")
+
+
+
+def validar_link_steam(link: str) -> str | None:
+    """
+    Valida e normaliza um link de inventário Steam.
+    Regras:
+      - Garante https:// no começo
+      - Requer steamcommunity.com/profiles/{algo}/inventory
+      - '{algo}' precisa ter ao menos 1 char, sem barra
+      - Se faltar /#730, adiciona
+    """
+    
+    if not link:
+        return None
+
+    link = link.strip()
+
+    # Adiciona https:// se não tiver
+    if not re.match(r"^https?://", link):
+        link = "https://" + link
+
+    # Regex:
+    # profiles/([^/]+)  → pelo menos 1 caractere que NÃO é "/"
+    pattern = r"^https://steamcommunity\.com/profiles/([^/]+)/inventory/?(#730)?$"
+    match = re.match(pattern, link)
+
+    if not match:
+        return None
+
+    steam_id = match.group(1)
+    tem_730 = match.group(2)
+
+    # Adiciona /#730 se não tiver
+    if not tem_730:
+        link = f"https://steamcommunity.com/profiles/{steam_id}/inventory/#730"
+
+    return link

@@ -11,22 +11,23 @@ import pyautogui
 import logging
 import time
 import datetime as datetime
-import tkinter as tk
-import re
+import sys
+from dotenv import load_dotenv
 import os
 from helpers import *
-# 76561199124145415
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO)
+
+load_dotenv()
 
 
 def extrair_inventario_steam(driver, wait):
     """Extrai o inventário do Steam e retorna um DataFrame com os dados."""
     try:
-        time.sleep(3)
+        time.sleep(5)
         driver.refresh()
-        time.sleep(3)
+        time.sleep(5)
         rolar_para_baixo(driver, 3, 100)
         paginas = obter_total_paginas(driver, wait)
         all_df = []
@@ -169,21 +170,24 @@ def extrair_inventario_steam(driver, wait):
 
 # ------------------------ Main ------------------------
 
-def main(link_inv):
+def main(remetente, link_inv, email_id):
 
     driver_path = os.path.abspath("geckodriver")
 
     logging.info('Iniciando service')
     firefox_service = Service(executable_path=driver_path)
     options = Options()
-    # options.add_argument('--headless')
+    options.add_argument('--headless')
 
     driver = webdriver.Firefox(service=firefox_service, options=options)
     wait = WebDriverWait(driver, 10)
     logging.info('Driver setado')
 
     driver.maximize_window()
-    driver.get(link_inv)
+
+    validar_link_steam(link_inv)
+
+    driver.get(link_inv) #TODO VALIDAR LINK STEAM INT
 
     df_steam = extrair_inventario_steam(driver, wait)
 
@@ -201,11 +205,86 @@ def main(link_inv):
 
     logging.info(df_agrupado)
 
-    df_agrupado.to_excel('relatorio.xlsx')
+    df_agrupado = df_agrupado.rename(columns={
+        'exterior': 'Exterior',
+        'float': 'Float',
+        'pattern': 'Pattern',
+        'nome_skin': 'Nome Completo',
+        'categoria_skin': 'Categoria Skin',
+        'run_game_link': 'Link Único do Item'
+    })
+
+    # Nova ordem desejada
+    colunas_ordenadas = [
+        'Nome Completo',
+        'Arma',
+        'Tipo',
+        'Skin',
+        'Pattern',
+        'Exterior',
+        'Float',
+        'Categoria Skin',
+        'Link Único do Item',
+        'Quantidade'
+    ]
+
+    # Seleciona somente colunas que existem no DF (evita KeyError)
+    colunas_existentes = [c for c in colunas_ordenadas if c in df_agrupado.columns]
+
+    df_agrupado = df_agrupado[colunas_existentes]
+
+    df_agrupado.to_excel(f'relatorio_{email_id}.xlsx')
+
+    qtd_skins = len(df_agrupado)
+
+    assunto = f"[Relatório de Inventário Steam] Extração concluída – ID {email_id}"
+
+    corpo = f"""
+        Olá {remetente},
+
+        A extração do inventário Steam foi concluída com sucesso! 🕹️✨
+
+        🔗 Link analisado:
+        {link_inv}
+
+        📦 Total de itens identificados: {qtd_skins}
+
+        O arquivo em anexo contém o relatório completo com todos os itens encontrados, já categorizados e consolidados para facilitar sua análise.
+
+        Caso deseje realizar uma nova extração, basta responder com o comando habitual.
+
+        Abraços,
+        Seu Assistente de Extração Automatizada 🤖
+    """
+
+    # ==============================
+    # Enviar o arquivo por email
+    # ==============================
+    enviar_email_com_excel(
+        destinatario=remetente,
+        assunto=assunto,
+        corpo=corpo,
+        caminho_excel=f'relatorio_{email_id}.xlsx'
+    )
+
+    logging.info("Relatório enviado com sucesso!")
 
 
 
-if __name__ == '__main__':
-    link_inv = 'https://steamcommunity.com/profiles/76561198148313096/inventory/#730'
+if __name__ == "__main__":
+    # sys.argv = lista com os argumentos da linha de comando
+    # argv[0] = nome do arquivo
+    if len(sys.argv) < 4:
+        logging.error("ERRO: parâmetros insuficientes.")
+        logging.error(f"Uso: python steam_precos_scrapping.py <parametros>")
+        sys.exit(1)
 
-    main(link_inv)
+    logging.info(sys.argv)
+
+    email_id = sys.argv[1]
+    remetente = sys.argv[2]
+    link_inv = sys.argv[4]
+
+    logging.info(f"Iniciado com args: {sys.argv}")
+
+    main(remetente, link_inv, email_id)
