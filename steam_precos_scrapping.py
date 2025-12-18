@@ -53,6 +53,7 @@ def extrair_inventario_steam(driver, wait):
                 time.sleep(2)
 
                 column_df = {
+                    'nome_completo': [],
                     'nome_skin': [],
                     'categoria_skin': [],
                     'exterior': [],
@@ -92,6 +93,7 @@ def extrair_inventario_steam(driver, wait):
                     column_df['exterior'] = ''
                     column_df['float'] = ''
                     column_df['pattern'] = ''
+                    column_df['nome_completo'] = nome_skin
                 else:
                     column_df['categoria_skin'] = categoria_text
 
@@ -103,10 +105,13 @@ def extrair_inventario_steam(driver, wait):
                         text = l.text.strip()
                         if text.startswith("Exterior:"):
                             exterior = text.replace("Exterior:", "").strip()
+                            column_df['nome_completo'] = f'{nome_skin} ({exterior})'
                             break
                     column_df['exterior'] = exterior
                     if exterior is None and "Knife" in nome_skin:
                         column_df['exterior'] = 'Not Painted'
+                        column_df['nome_completo'] = nome_skin
+
 
                     div = site.find('div', attrs={'class': 'Cgo8G5L7D0oP0OHVGcq_D _3JCkAyd9cnB90tRcDLPp4W _38cfDT7owcq-7PHlx-Bx2j _3nHL7awgK1Qei1XivGvHMK'})
                     lista_info = div.find_all('div', attrs={'class': 'f6hU22EA7Z8peFWZVBJU'})
@@ -235,37 +240,37 @@ def main(remetente, link_inv, email_id):
 
     df_agrupado.to_excel(f'relatorio_{email_id}.xlsx')
 
-    qtd_skins = len(df_agrupado)
+    # qtd_skins = len(df_agrupado)
 
-    assunto = f"[Relatório de Inventário Steam] Extração concluída – ID {email_id}"
+    # assunto = f"[Relatório de Inventário Steam] Extração concluída – ID {email_id}"
 
-    corpo = f"""
-        Olá {remetente},
+    # corpo = f"""
+    #     Olá {remetente},
 
-        A extração do inventário Steam foi concluída com sucesso! 🕹️✨
+    #     A extração do inventário Steam foi concluída com sucesso! 🕹️✨
 
-        🔗 Link analisado:
-        {link_inv}
+    #     🔗 Link analisado:
+    #     {link_inv}
 
-        📦 Total de itens identificados: {qtd_skins}
+    #     📦 Total de itens identificados: {qtd_skins}
 
-        O arquivo em anexo contém o relatório completo com todos os itens encontrados, já categorizados e consolidados para facilitar sua análise.
+    #     O arquivo em anexo contém o relatório completo com todos os itens encontrados, já categorizados e consolidados para facilitar sua análise.
 
-        Caso deseje realizar uma nova extração, basta responder com o comando habitual.
+    #     Caso deseje realizar uma nova extração, basta responder com o comando habitual.
 
-        Abraços,
-        Seu Assistente de Extração Automatizada 🤖
-    """
+    #     Abraços,
+    #     Seu Assistente de Extração Automatizada 🤖
+    # """
 
-    # ==============================
-    # Enviar o arquivo por email
-    # ==============================
-    enviar_email_com_excel(
-        destinatario=remetente,
-        assunto=assunto,
-        corpo=corpo,
-        caminho_excel=f'relatorio_{email_id}.xlsx'
-    )
+    # # ==============================
+    # # Enviar o arquivo por email
+    # # ==============================
+    # enviar_email_com_excel(
+    #     destinatario=remetente,
+    #     assunto=assunto,
+    #     corpo=corpo,
+    #     caminho_excel=f'relatorio_{email_id}.xlsx'
+    # )
 
     logging.info("Relatório enviado com sucesso!")
 
@@ -274,17 +279,19 @@ def main(remetente, link_inv, email_id):
 if __name__ == "__main__":
     # sys.argv = lista com os argumentos da linha de comando
     # argv[0] = nome do arquivo
-    if len(sys.argv) < 4:
-        logging.error("ERRO: parâmetros insuficientes.")
-        logging.error(f"Uso: python steam_precos_scrapping.py <parametros>")
-        sys.exit(1)
+    # if len(sys.argv) < 4:
+    #     logging.error("ERRO: parâmetros insuficientes.")
+    #     logging.error(f"Uso: python steam_precos_scrapping.py <parametros>")
+    #     sys.exit(1)
 
-    logging.info(sys.argv)
+    # logging.info(sys.argv)
 
-    email_id = sys.argv[1]
-    remetente = sys.argv[2]
-    link_inv = sys.argv[4]
+    # email_id = sys.argv[1]
+    # remetente = sys.argv[2]
+    # link_inv = sys.argv[4]
 
-    logging.info(f"Iniciado com args: {sys.argv}")
+    # logging.info(f"Iniciado com args: {sys.argv}")
 
-    main(remetente, link_inv, email_id)
+
+
+    main(remetente=None, link_inv='https://steamcommunity.com/profiles/76561198342108072/inventory/#730', email_id=None)
