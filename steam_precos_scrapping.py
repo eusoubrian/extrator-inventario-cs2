@@ -25,15 +25,15 @@ load_dotenv()
 def extrair_inventario_steam(driver, wait):
     """Extrai o inventário do Steam e retorna um DataFrame com os dados."""
     try:
-        time.sleep(5)
+        time.sleep(3)
         driver.refresh()
-        time.sleep(5)
+        time.sleep(3)
         rolar_para_baixo(driver, 3, 100)
         paginas = obter_total_paginas(driver, wait)
         all_df = []
 
         for pagina in range(1, paginas + 1):
-            time.sleep(3)
+            time.sleep(2)
             logging.info(f"Extraindo dados da página {pagina} de {paginas}...")
 
             page_source = driver.execute_script('return document.body.innerHTML')
@@ -44,13 +44,13 @@ def extrair_inventario_steam(driver, wait):
                 first_box = wait.until(EC.presence_of_element_located(
                     (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[1]/div/a')
                 ))
-                time.sleep(2)
+                time.sleep(1.5)
                 ActionChains(driver).double_click(first_box).perform()
             except:
                 pass
 
             for index, box in enumerate(boxes, start=1):
-                time.sleep(2)
+                time.sleep(1)
 
                 column_df = {
                     'nome_completo': [],
@@ -59,7 +59,9 @@ def extrair_inventario_steam(driver, wait):
                     'exterior': [],
                     'float': [],
                     'pattern': [],
-                    'run_game_link': []
+                    'run_game_link': [],
+                    'preco_buff': [],
+                    'buy_orders': []
                 }
 
                 page_source = driver.execute_script('return document.body.innerHTML')
@@ -67,7 +69,6 @@ def extrair_inventario_steam(driver, wait):
 
                 nome_skin = site.find('h1', attrs={'class': 'R1W-zMFN4WGw9JK48Yqez _12ldq1_X5RuLWAAs_ODwt7'}).text.strip()
                 column_df['nome_skin'] = nome_skin
-                logging.info(f'Skin: {nome_skin}')
 
                 categoria_text = site.find('span', attrs={'class': '_1maNP9UvDekHzld1kwwQnw f6hU22EA7Z8peFWZVBJU'}).text.strip()
 
@@ -76,7 +77,7 @@ def extrair_inventario_steam(driver, wait):
                     try:
                         pyautogui.moveRel(1, 0)
                         pyautogui.moveRel(-1, 0)
-                        time.sleep(5)
+                        time.sleep(3)
                         next_box = wait.until(EC.presence_of_element_located(
                             (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[{index + 1}]/div/a')
                         ))
@@ -94,6 +95,10 @@ def extrair_inventario_steam(driver, wait):
                     column_df['float'] = ''
                     column_df['pattern'] = ''
                     column_df['nome_completo'] = nome_skin
+
+                    preco_buff, buy_orders = req_preco_buff(nome_skin)
+                    column_df['preco_buff'] = preco_buff
+                    column_df['buy_orders'] = buy_orders
                 else:
                     column_df['categoria_skin'] = categoria_text
 
@@ -132,6 +137,10 @@ def extrair_inventario_steam(driver, wait):
                     column_df['pattern'] = pattern
                     column_df['float'] = float_str
 
+                    preco_buff, buy_orders = req_preco_buff(f'{nome_skin} ({exterior})')
+                    column_df['preco_buff'] = preco_buff
+                    column_df['buy_orders'] = buy_orders
+
                 run_game_link = site.find('a', attrs={'class': '_1QAy1Cc-ZLMZh5eTmrOl56 _3tzhYVET7ZK7wJDcq-fTqL _1Lj8DZ5OwROQBTPVOJcAY _3A_c3YHYd4YIjA8Y-olnPl'})
                 href_run_game_link = run_game_link['href'] if run_game_link else None
                 column_df['run_game_link'] = href_run_game_link
@@ -143,7 +152,7 @@ def extrair_inventario_steam(driver, wait):
                 try:
                     pyautogui.moveRel(1, 0)
                     pyautogui.moveRel(-1, 0)
-                    time.sleep(3)
+                    time.sleep(2)
                     next_box = wait.until(EC.presence_of_element_located(
                         (By.XPATH, f'/html/body/div[1]/div[7]/div[4]/div/div[2]/div/div[4]/div[9]/div[2]/div[1]/div/div[{pagina}]/div[{index + 1}]/div/a')
                     ))
@@ -214,9 +223,11 @@ def main(remetente, link_inv, email_id):
         'exterior': 'Exterior',
         'float': 'Float',
         'pattern': 'Pattern',
-        'nome_skin': 'Nome Completo',
+        'nome_completo': 'Nome Completo',
         'categoria_skin': 'Categoria Skin',
-        'run_game_link': 'Link Único do Item'
+        'run_game_link': 'Link Único do Item',
+        'preco_buff': 'Preço Buff',
+        'buy_orders': 'Buy Orders'
     })
 
     # Nova ordem desejada
@@ -230,7 +241,9 @@ def main(remetente, link_inv, email_id):
         'Float',
         'Categoria Skin',
         'Link Único do Item',
-        'Quantidade'
+        'Quantidade',
+        'Preço Buff',
+        'Buy Orders'
     ]
 
     # Seleciona somente colunas que existem no DF (evita KeyError)
@@ -294,4 +307,4 @@ if __name__ == "__main__":
 
 
 
-    main(remetente=None, link_inv='https://steamcommunity.com/profiles/76561198342108072/inventory/#730', email_id=None)
+    main(remetente=None, link_inv='https://steamcommunity.com/profiles/76561199656761046/inventory#730', email_id=None)

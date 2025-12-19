@@ -7,7 +7,7 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 import pandas as pd
-import pyautogui
+import requests
 import logging
 import time
 import datetime as datetime
@@ -52,6 +52,27 @@ DE_PARA_EXTERIOR = {
     'Battle-Scarred': 'BS',
     'Not Painted': 'Not Painted'
 }
+
+HEADERS = {
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Connection": "keep-alive",
+        "Host": "buff.163.com",
+        "Referer": "https://buff.163.com/market/",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0",
+        "X-Requested-With": "XMLHttpRequest"
+}
+
+COOKIES = {
+    "Device-Id": os.getenv("DEVICE_ID"),
+    "remember_me": os.getenv("REMEMBER_ME"),
+    "session": os.getenv("SESSION"),
+    "csrf_token": os.getenv("CSRF_TOKEN"),
+    "Locale-Supported": "en",
+    "game": "csgo"
+}
+
 
 # ------------------------ Funções ------------------------
 
@@ -418,3 +439,60 @@ def validar_link_steam(link: str) -> str | None:
         link = f"https://steamcommunity.com/profiles/{steam_id}/inventory/#730"
 
     return link
+
+
+
+def req_preco_buff(nome_completo_skin):
+
+    nome_completo_http = nome_completo_skin.replace(' ', '%20').replace('(', '').replace(')', '')
+
+    https_base = f"https://buff.163.com/api/market/goods?game=csgo&page_num=1&page_size=50&search={nome_completo_http}"
+
+    resp = requests.get(https_base, headers=HEADERS, cookies=COOKIES)
+
+    if resp.json().get('code') == 'Login Required':
+        raise ConnectionError('ERRO credenciais do BUFF desatualizadas')
+
+    lista_itens = resp.json()['data']['items']
+
+    if len(lista_itens) > 1:
+        for item in lista_itens:
+            if item['market_hash_name'] == nome_completo_skin:
+                preco_buff = float(item['sell_min_price'])
+                buy_orders = int(item['buy_num'])
+                preco_buff_real = converter_rmb_para_brl(preco_buff)
+                break
+    else:
+        preco_buff = float(lista_itens[0]['sell_min_price'])
+        buy_orders = int(lista_itens[0]['buy_num'])
+        preco_buff_real = converter_rmb_para_brl(preco_buff)
+
+    logging.info(f'{nome_completo_skin}: R${preco_buff_real}')
+
+
+    return preco_buff_real, buy_orders
+
+
+
+def converter_rmb_para_brl(valor_rmb: float) -> float:
+    """
+    Converte um valor de RMB (CNY) para BRL usando uma API de câmbio em tempo real.
+
+    :param valor_rmb: Valor em RMB (Yuan chinês) a ser convertido.
+    :param api_key: Sua chave de API da CurrencyAPI ou serviço semelhante.
+    :return: Valor convertido em reais brasileiros (BRL).
+    :raises: Exception em caso de erro na requisição.
+    """
+    # Endpoint de taxas (CurrencyAPI como exemplo)
+    url = f"https://hexarate.paikama.co/api/rates/CNY/BRL/latest"
+
+    response = requests.get(url)
+    data = response.json()
+
+    if response.status_code == 200:
+        cotacao = float(data.get('data').get('mid'))
+        valor_brl = valor_rmb * cotacao
+        return round(valor_brl, 2)
+    else:
+        raise Exception(f"Erro ao consultar a API: {data}")
+    
