@@ -40,7 +40,7 @@ ITENS_DIFERENTES = [
 ITENS_PARA_IGNORAR = [
     'Collectible',
     'Stock',
-    'Music Kit',
+    'Music Kit', #TODO TRAZER MUSIC KIT TALVEZ
     'Grade Tool'
 ]
 
