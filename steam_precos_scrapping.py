@@ -307,4 +307,4 @@ if __name__ == "__main__":
 
 
 
-    main(remetente=None, link_inv='https://steamcommunity.com/profiles/76561199656761046/inventory#730', email_id=None)
+    main(remetente=None, link_inv='https://steamcommunity.com/profiles/76561198375835158/inventory/#730', email_id=None)

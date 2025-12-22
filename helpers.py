@@ -148,6 +148,12 @@ def cria_coluna_arma(df):
     df.loc[mask_graffiti, 'Arma'] = "GRAFFITI"
 
     # -----------------------------
+    # 6. REGRAS PARA "KIT MUSICA" (Music Kit)
+    # -----------------------------
+    mask_music = df['categoria_skin'].astype(str).str.contains("Music Kit", case=False, na=False)
+    df.loc[mask_music, 'Arma'] = "KIT MUSICA"
+
+    # -----------------------------
     # 6. REGRAS PARA Facas sem pintura (Not Painted)
     # -----------------------------
     mask_sem_pintura = df['exterior'].astype(str).str.contains("Not Painted", case=False, na=False)
@@ -333,10 +339,16 @@ def criar_coluna_tipo(df):
     df.loc[mask_chaveiro, 'Tipo'] = "CHAVEIRO"
 
     # -----------------------------
-    # 13. REGRAS PARA GRAFFITI (Charm)
+    # 14. REGRAS PARA GRAFFITI (Charm)
     # -----------------------------
     mask_graffiti = df['categoria_skin'].astype(str).str.contains("Graffiti", case=False, na=False)
     df.loc[mask_graffiti, 'Tipo'] = "GRAFFITI"
+
+    # -----------------------------
+    # 15. REGRAS PARA KIT MUSICA (Music Kit)
+    # -----------------------------
+    mask_music = df['categoria_skin'].astype(str).str.contains("Music Kit", case=False, na=False)
+    df.loc[mask_music, 'Tipo'] = "KIT MUSICA"
 
     return df
 
@@ -444,6 +456,8 @@ def validar_link_steam(link: str) -> str | None:
 
 def req_preco_buff(nome_completo_skin):
 
+    nome_completo_skin = nome_completo_skin.replace('Sealed ', '')
+
     nome_completo_http = nome_completo_skin.replace(' ', '%20').replace('(', '').replace(')', '')
 
     https_base = f"https://buff.163.com/api/market/goods?game=csgo&page_num=1&page_size=50&search={nome_completo_http}"
@@ -457,17 +471,17 @@ def req_preco_buff(nome_completo_skin):
 
     if len(lista_itens) > 1:
         for item in lista_itens:
-            if item['market_hash_name'] == nome_completo_skin:
+            if item['market_hash_name'].replace('Sealed ', '') == nome_completo_skin:
                 preco_buff = float(item['sell_min_price'])
                 buy_orders = int(item['buy_num'])
                 preco_buff_real = converter_rmb_para_brl(preco_buff)
+                logging.info(f'{nome_completo_skin} / {item['market_hash_name']}: R${preco_buff_real}')
                 break
     else:
         preco_buff = float(lista_itens[0]['sell_min_price'])
         buy_orders = int(lista_itens[0]['buy_num'])
         preco_buff_real = converter_rmb_para_brl(preco_buff)
-
-    logging.info(f'{nome_completo_skin}: R${preco_buff_real}')
+        logging.info(f'{nome_completo_skin} / {lista_itens[0]['market_hash_name']}: R${preco_buff_real}')
 
 
     return preco_buff_real, buy_orders
